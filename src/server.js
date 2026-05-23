@@ -22,6 +22,10 @@ app.use(cookieParser());
 app.use('/assets', express.static(path.join(config.rootDir, 'public')));
 app.use(attachUser);
 
+app.get('/healthz', (_req, res) => {
+  res.status(200).json({ ok: true });
+});
+
 app.use(pagesRouter);
 app.use(authRouter);
 app.use(quizzesRouter);
