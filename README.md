@@ -1,8 +1,8 @@
-# Quiz Test AI
+# Quiz-test
 
-Foydalanuvchi `.txt`, `.md`, `.csv`, `.docx` yoki `.pdf` fayl yuklaydi. Sayt fayldagi A/B/C/D savollarni AI APIga yuboradi, javoblari bilan quiz yaratadi va barcha ma'lumotlarni PostgreSQLda saqlaydi.
+AI yordamida yuklangan `.txt`, `.md`, `.csv`, `.docx` yoki `.pdf` fayllardan A/B/C/D quiz testlar yaratadigan sayt. Foydalanuvchilar, quizlar, savollar, javoblar va har bir urinish natijasi PostgreSQLda saqlanadi.
 
-## Ishga tushirish
+## Ishga Tushirish
 
 1. PostgreSQLni ko‘taring:
 
@@ -12,17 +12,15 @@ docker compose up -d
 
 Docker Postgres tashqi porti `5433`, ichki porti `5432`. Bu Windowsda ishlayotgan boshqa PostgreSQL bilan to‘qnashmasligi uchun shunday qilingan.
 
-2. `.env` faylida AI API kalitni yozing:
+2. `.env` faylida Gemini API sozlamalari:
 
 ```env
-AI_API_KEY=sk-...
-AI_BASE_URL=https://api.openai.com/v1
-AI_MODEL=gpt-4o-mini
+AI_API_KEY=your_gemini_api_key
+AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+AI_MODEL=gemini-2.5-flash
 ```
 
-OpenAI-compatible boshqa provider ishlatsa ham bo‘ladi, faqat `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL` qiymatlarini almashtiring.
-
-3. Dependencylar allaqachon o‘rnatilgan. Qayta o‘rnatish kerak bo‘lsa:
+3. Dependencylarni o‘rnating:
 
 ```powershell
 npm install
@@ -93,7 +91,7 @@ password: admin123
 
 Admin panelda umumiy statistika, foydalanuvchilar, quizlar va o‘chirish amallari bor. Parolni productionda `.env` orqali almashtiring.
 
-## Test fayl
+## Test Fayl
 
 Sinab ko‘rish uchun:
 
