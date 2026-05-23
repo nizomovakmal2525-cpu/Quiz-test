@@ -313,9 +313,10 @@ function normalizeQuestion(item, index) {
   const optionB = cleanText(options.B || options.b || item.option_b || item.b);
   const optionC = cleanText(options.C || options.c || item.option_c || item.c);
   const optionD = cleanText(options.D || options.d || item.option_d || item.d);
-  const correctOption = cleanText(item.correctOption || item.correct_option || item.answer || item.javob)
-    .slice(0, 1)
-    .toUpperCase();
+  const correctOption = inferCorrectOption(
+    item.correctOption || item.correct_option || item.answer || item.javob,
+    { A: optionA, B: optionB, C: optionC, D: optionD }
+  );
 
   if (!question || !optionA || !optionB || !optionC || !optionD || !isOption(correctOption)) {
     return null;
@@ -339,12 +340,36 @@ function assertAiConfigured() {
   }
 }
 
+function inferCorrectOption(value, options) {
+  const raw = cleanText(value);
+  const first = raw.slice(0, 1).toUpperCase();
+  if (isOption(first)) return first;
+
+  const normalizedRaw = normalizeForCompare(raw);
+  for (const [key, optionText] of Object.entries(options)) {
+    const normalizedOption = normalizeForCompare(optionText);
+    if (normalizedOption && (normalizedRaw === normalizedOption || normalizedRaw.includes(normalizedOption))) {
+      return key;
+    }
+  }
+
+  return '';
+}
+
 function isOption(value) {
   return ['A', 'B', 'C', 'D'].includes(String(value || '').toUpperCase());
 }
 
 function cleanText(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function normalizeForCompare(value) {
+  return cleanText(value)
+    .toLowerCase()
+    .replace(/^[abcd]\s*[\).:\-\]]?\s*/i, '')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
 }
 
 function createTitle(fileName) {

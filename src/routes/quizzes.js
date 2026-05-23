@@ -526,12 +526,12 @@ function renderNotFound(req) {
 function buildPlayableQuestions(questions) {
   return shuffle(questions).map((question, questionIndex) => {
     const options = shuffle([
-      { originalKey: 'A', text: question.option_a },
-      { originalKey: 'B', text: question.option_b },
-      { originalKey: 'C', text: question.option_c },
-      { originalKey: 'D', text: question.option_d }
-    ]).map((option, optionIndex) => ({
-      displayKey: optionKeys[optionIndex],
+      { displayKey: 'A', originalKey: 'A', text: question.option_a },
+      { displayKey: 'B', originalKey: 'B', text: question.option_b },
+      { displayKey: 'C', originalKey: 'C', text: question.option_c },
+      { displayKey: 'D', originalKey: 'D', text: question.option_d }
+    ]).map((option) => ({
+      displayKey: option.displayKey,
       originalKey: option.originalKey,
       text: option.text,
       isCorrect: option.originalKey === question.correct_option
@@ -545,7 +545,7 @@ function buildPlayableQuestions(questions) {
       question: question.question,
       explanation: question.explanation || '',
       options,
-      correctDisplayKey: correctOption?.displayKey || 'A'
+      correctDisplayKey: correctOption?.displayKey || question.correct_option
     };
   });
 }
