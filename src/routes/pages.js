@@ -50,7 +50,7 @@ Javob: B</pre>
         <article class="rule-item">
           <span class="rule-number">01</span>
           <h2>Fayl formati</h2>
-          <p>.txt, .md, .csv, .docx yoki .pdf yuboring. Eng yaxshi natija uchun Word yoki oddiy text fayl ishlating.</p>
+          <p>Sayt har qanday faylni qabul qiladi. Eng yaxshi natija uchun text o‘qiladigan PDF/DOCX/TXT yoki savol-javoblari aniq ko‘rinadigan rasm yuboring.</p>
         </article>
         <article class="rule-item">
           <span class="rule-number">02</span>
@@ -65,7 +65,7 @@ Javob: B</pre>
         <article class="rule-item">
           <span class="rule-number">04</span>
           <h2>Limit</h2>
-          <p>Bitta fayl 10 MB gacha. Juda katta PDF yuborsangiz AI token limitiga tushmasligi uchun savollarni bo‘lib yuboring.</p>
+          <p>Bitta fayl 10 MB gacha. Juda katta yoki skanerlangan PDF bo‘lsa, savollarni kichik qismlarga bo‘lib yoki rasm/text formatda yuboring.</p>
         </article>
       </section>
 
@@ -110,7 +110,7 @@ export function renderCreate(req, error = '') {
         <div>
           <p class="eyebrow">Create</p>
           <h1>Fayldan quiz test yaratish.</h1>
-          <p class="muted">Fayl yuklang, AI savollarni tahlil qiladi va tayyor quiz “Quiz tests” bo‘limida paydo bo‘ladi.</p>
+          <p class="muted">Fayl yuklang, AI savollarni tahlil qiladi va tayyor quiz “Quiz tests” hamda “Others Users Tests” bo‘limida paydo bo‘ladi.</p>
         </div>
         <span class="status-pill ${aiReady ? 'ok' : 'warn'}">${aiReady ? 'AI ulangan' : 'AI key kerak'}</span>
       </section>
@@ -122,10 +122,10 @@ export function renderCreate(req, error = '') {
             <input name="title" placeholder="Masalan: MTA 1-kurs testlari">
           </label>
           <label class="dropzone">
-            <input type="file" name="quizFile" accept=".txt,.md,.csv,.docx,.pdf" required>
+            <input type="file" name="quizFile" required>
             <span class="drop-icon">+</span>
             <strong>Faylni tanlang</strong>
-            <small>.txt, .md, .csv, .docx, .pdf | 10 MB gacha</small>
+            <small>Har qanday fayl | 10 MB gacha | text/PDF/DOCX/rasm eng yaxshi ishlaydi</small>
           </label>
           ${error ? `<p class="field-error">${escapeHtml(error)}</p>` : ''}
           <button class="button full" type="submit">AI orqali quiz yaratish</button>
@@ -137,7 +137,8 @@ export function renderCreate(req, error = '') {
             <li>Savollarni raqam bilan boshlang.</li>
             <li>Variantlarni A), B), C), D) ko‘rinishida yozing.</li>
             <li>Javoblar bor bo‘lsa “Javob: A” tarzida qoldiring.</li>
-            <li>Skanerlangan rasmli PDF emas, text o‘qiladigan PDF ishlating.</li>
+            <li>Rasmda savol bo‘lsa, javob matni ham aniq ko‘rinsin.</li>
+            <li>Skanerlangan PDF ishlamasa, sahifalarni rasm qilib yuborib ko‘ring.</li>
           </ul>
         </aside>
       </section>

@@ -1,10 +1,152 @@
 import { config } from '../config.js';
+import { parseStructuredQuiz } from './quiz-parser.js';
 
-export async function generateQuizFromText({ text, fileName }) {
-  if (!config.ai.apiKey) {
-    throw new Error('AI_API_KEY .env faylida sozlanmagan.');
+export async function generateQuizFromContent({ content, fileName }) {
+  if (content.kind === 'image') {
+    return generateQuizFromImage({ content, fileName });
   }
 
+  const parsed = parseStructuredQuiz(content.text, fileName);
+  if (parsed.questions.length > 0) {
+    const hasAllAnswers = parsed.questions.every((question) => isOption(question.correctOption));
+    if (hasAllAnswers) return parsed;
+    return completeMissingAnswersWithAi(parsed, fileName);
+  }
+
+  return generateQuizFromText({ text: content.text, fileName });
+}
+
+export async function generateQuizFromText({ text, fileName }) {
+  assertAiConfigured();
+
+  const content = await chatCompletion([
+    {
+      role: 'system',
+      content: [
+        'Siz test savollarini aniq JSON formatga aylantiradigan yordamchisiz.',
+        'Matnda mavjud barcha A/B/C/D variantli savollarni ajrating.',
+        "Agar matnda to'g'ri javob ko'rsatilgan bo'lsa, aynan shuni oling.",
+        "Agar javob belgilanmagan bo'lsa, savol va variantlardan eng ehtimoliy javobni aniqlang.",
+        'Faqat valid JSON qaytaring. Markdown, izoh yoki ortiqcha matn qaytarmang.'
+      ].join(' ')
+    },
+    {
+      role: 'user',
+      content: [
+        `Fayl nomi: ${fileName}`,
+        '',
+        'Quyidagi matndan quiz tuzing. JSON sxemasi:',
+        '{"title":"qisqa quiz nomi","questions":[{"question":"savol matni","options":{"A":"...","B":"...","C":"...","D":"..."},"correctOption":"A","explanation":"qisqa izoh"}]}',
+        '',
+        'Talablar:',
+        '- Savollar sonini kamaytirmang.',
+        "- Variantlar A, B, C, D bo'lishi shart.",
+        "- correctOption faqat A, B, C yoki D bo'lsin.",
+        "- Matnda savollar tartibi qanday bo'lsa, JSONda ham shu tartibda bering.",
+        '',
+        'MATN:',
+        text.slice(0, 90000)
+      ].join('\n')
+    }
+  ]);
+
+  return normalizeQuizJsonWithRepair(content, fileName);
+}
+
+async function completeMissingAnswersWithAi(quiz, fileName) {
+  assertAiConfigured();
+
+  const answerPayload = quiz.questions.map((question) => ({
+    idx: question.idx,
+    question: question.question,
+    options: {
+      A: question.optionA,
+      B: question.optionB,
+      C: question.optionC,
+      D: question.optionD
+    },
+    knownCorrectOption: isOption(question.correctOption) ? question.correctOption : null
+  }));
+
+  const content = await chatCompletion([
+    {
+      role: 'system',
+      content: 'Siz test javoblarini aniqlaysiz. Faqat valid JSON qaytaring.'
+    },
+    {
+      role: 'user',
+      content: [
+        `Fayl nomi: ${fileName}`,
+        'Quyidagi savollar uchun correctOption va qisqa explanation qaytaring.',
+        'JSON sxema: {"answers":[{"idx":1,"correctOption":"A","explanation":"qisqa izoh"}]}',
+        JSON.stringify(answerPayload)
+      ].join('\n')
+    }
+  ], Math.min(config.ai.maxTokens, 8000));
+
+  const parsed = await parseJsonWithRepair(content, 'answers');
+  const answerMap = new Map(
+    (Array.isArray(parsed.answers) ? parsed.answers : [])
+      .map((answer) => [Number(answer.idx), answer])
+  );
+
+  const questions = quiz.questions.map((question) => {
+    if (isOption(question.correctOption)) return question;
+    const answer = answerMap.get(question.idx);
+    const correctOption = cleanText(answer?.correctOption).slice(0, 1).toUpperCase();
+
+    if (!isOption(correctOption)) {
+      throw new Error(`${question.idx}-savol uchun to‘g‘ri javobni aniqlab bo‘lmadi.`);
+    }
+
+    return {
+      ...question,
+      correctOption,
+      explanation: cleanText(answer?.explanation || 'AI javob variantlarini tahlil qildi.')
+    };
+  });
+
+  return { title: quiz.title, questions };
+}
+
+async function generateQuizFromImage({ content, fileName }) {
+  assertAiConfigured();
+
+  const aiContent = await chatCompletion([
+    {
+      role: 'system',
+      content: [
+        'Siz rasm ichidagi test savollarini o‘qib JSONga aylantirasiz.',
+        'Savol rasm ichida, javob esa rasm tagidagi matn yoki belgi sifatida berilgan bo‘lishi mumkin.',
+        'Rasmdagi barcha ko‘rinadigan yozuv, formulalar, variantlar va javob belgilarini birga tahlil qiling.',
+        'Faqat valid JSON qaytaring. Savollar A/B/C/D variantli bo‘lsin.'
+      ].join(' ')
+    },
+    {
+      role: 'user',
+      content: [
+        {
+          type: 'text',
+          text: [
+            `Fayl nomi: ${fileName}`,
+            'Rasm ichidagi barcha test savollarini ajrating. Agar savol rasmda, javob esa pastida text qilib yozilgan bo‘lsa, javobni ham aniqlang.',
+            'JSON sxema: {"title":"qisqa quiz nomi","questions":[{"question":"savol","options":{"A":"...","B":"...","C":"...","D":"..."},"correctOption":"A","explanation":"qisqa izoh"}]}'
+          ].join('\n')
+        },
+        {
+          type: 'image_url',
+          image_url: {
+            url: `data:${content.mimeType};base64,${content.base64}`
+          }
+        }
+      ]
+    }
+  ]);
+
+  return normalizeQuizJsonWithRepair(aiContent, fileName);
+}
+
+async function chatCompletion(messages, maxTokens = config.ai.maxTokens) {
   const response = await fetch(`${config.ai.baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -14,48 +156,9 @@ export async function generateQuizFromText({ text, fileName }) {
     body: JSON.stringify({
       model: config.ai.model,
       temperature: 0.1,
-      max_tokens: config.ai.maxTokens,
+      max_tokens: maxTokens,
       response_format: { type: 'json_object' },
-      messages: [
-        {
-          role: 'system',
-          content: [
-            'Siz test savollarini aniq JSON formatga aylantiradigan yordamchisiz.',
-            'Matnda mavjud barcha A/B/C/D variantli savollarni ajrating.',
-            "Agar matnda to'g'ri javob ko'rsatilgan bo'lsa, aynan shuni oling.",
-            "Agar javob belgilanmagan bo'lsa, savol va variantlardan eng ehtimoliy javobni aniqlang.",
-            'Faqat JSON qaytaring. Markdown, izoh yoki ortiqcha matn qaytarmang.'
-          ].join(' ')
-        },
-        {
-          role: 'user',
-          content: [
-            `Fayl nomi: ${fileName}`,
-            '',
-            'Quyidagi matndan quiz tuzing. JSON sxemasi:',
-            '{',
-            '  "title": "qisqa quiz nomi",',
-            '  "questions": [',
-            '    {',
-            '      "question": "savol matni",',
-            '      "options": {"A": "...", "B": "...", "C": "...", "D": "..."},',
-            '      "correctOption": "A",',
-            '      "explanation": "1-2 gapli qisqa izoh"',
-            '    }',
-            '  ]',
-            '}',
-            '',
-            'Talablar:',
-            '- Savollar sonini kamaytirmang.',
-            "- Variantlar A, B, C, D bo'lishi shart.",
-            "- correctOption faqat A, B, C yoki D bo'lsin.",
-            "- Matnda savollar tartibi qanday bo'lsa, JSONda ham shu tartibda bering.",
-            '',
-            'MATN:',
-            text.slice(0, 110000)
-          ].join('\n')
-        }
-      ]
+      messages
     })
   });
 
@@ -70,11 +173,11 @@ export async function generateQuizFromText({ text, fileName }) {
     throw new Error('AI javobida content topilmadi.');
   }
 
-  return normalizeQuizJson(content, fileName);
+  return content;
 }
 
-function normalizeQuizJson(rawContent, fileName) {
-  const parsed = safeParseJson(rawContent);
+async function normalizeQuizJsonWithRepair(rawContent, fileName) {
+  const parsed = await parseJsonWithRepair(rawContent, 'questions');
   const questions = Array.isArray(parsed.questions) ? parsed.questions : [];
 
   const normalizedQuestions = questions
@@ -91,6 +194,38 @@ function normalizeQuizJson(rawContent, fileName) {
   };
 }
 
+async function parseJsonWithRepair(rawContent, expectedKey) {
+  try {
+    return safeParseJson(rawContent);
+  } catch (error) {
+    try {
+      return safeParseJson(await repairJsonWithAi(rawContent, error.message, expectedKey));
+    } catch (_repairError) {
+      throw new Error(`AI JSON javobi buzilgan. Qayta urinib ko‘ring yoki faylni kichikroq qismlarga bo‘lib yuboring. Asl xato: ${error.message}`);
+    }
+  }
+}
+
+async function repairJsonWithAi(rawContent, parseError, expectedKey) {
+  assertAiConfigured();
+
+  return chatCompletion([
+    {
+      role: 'system',
+      content: 'Siz buzilgan JSONni valid JSONga tuzatasiz. Faqat JSON qaytaring.'
+    },
+    {
+      role: 'user',
+      content: [
+        `JSON parse xatosi: ${parseError}`,
+        `Natijada "${expectedKey}" kaliti bo‘lishi shart.`,
+        'Buzilgan JSON:',
+        String(rawContent).slice(0, 90000)
+      ].join('\n')
+    }
+  ]);
+}
+
 function safeParseJson(rawContent) {
   const content = String(rawContent).trim();
 
@@ -98,9 +233,7 @@ function safeParseJson(rawContent) {
     return JSON.parse(content);
   } catch (_error) {
     const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1];
-    if (fenced) {
-      return JSON.parse(fenced);
-    }
+    if (fenced) return JSON.parse(fenced);
 
     const start = content.indexOf('{');
     const end = content.lastIndexOf('}');
@@ -123,7 +256,7 @@ function normalizeQuestion(item, index) {
     .slice(0, 1)
     .toUpperCase();
 
-  if (!question || !optionA || !optionB || !optionC || !optionD || !['A', 'B', 'C', 'D'].includes(correctOption)) {
+  if (!question || !optionA || !optionB || !optionC || !optionD || !isOption(correctOption)) {
     return null;
   }
 
@@ -137,6 +270,16 @@ function normalizeQuestion(item, index) {
     correctOption,
     explanation: cleanText(item.explanation || item.izoh || '')
   };
+}
+
+function assertAiConfigured() {
+  if (!config.ai.apiKey) {
+    throw new Error('AI_API_KEY .env faylida sozlanmagan.');
+  }
+}
+
+function isOption(value) {
+  return ['A', 'B', 'C', 'D'].includes(String(value || '').toUpperCase());
 }
 
 function cleanText(value) {

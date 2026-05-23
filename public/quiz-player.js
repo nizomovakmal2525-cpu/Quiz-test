@@ -29,6 +29,7 @@ if (dataEl) {
   };
 
   els.startButton?.addEventListener('click', startCountdown);
+  setupShareButton();
 
   function startCountdown() {
     state.currentIndex = 0;
@@ -261,6 +262,30 @@ if (dataEl) {
       state.timerId = null;
     }
   }
+}
+
+function setupShareButton() {
+  const button = document.getElementById('share-quiz');
+  if (!button) return;
+
+  button.addEventListener('click', async () => {
+    const url = button.dataset.shareUrl || window.location.href;
+    const text = `Quiz testni ishlang: ${url}`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: document.title, text, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        button.textContent = 'Link nusxalandi';
+        window.setTimeout(() => {
+          button.textContent = 'Ulashish';
+        }, 1600);
+      }
+    } catch (_error) {
+      await navigator.clipboard?.writeText(url).catch(() => {});
+    }
+  });
 }
 
 function escapeHtml(value = '') {

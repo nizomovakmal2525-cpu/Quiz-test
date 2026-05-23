@@ -5,8 +5,8 @@ import multer from 'multer';
 import { config } from '../config.js';
 import { query, transaction } from '../db.js';
 import { requireUser } from '../middleware/auth.js';
-import { generateQuizFromText } from '../services/ai.js';
-import { extractTextFromFile } from '../services/file-text.js';
+import { generateQuizFromContent } from '../services/ai.js';
+import { extractFileContent } from '../services/file-text.js';
 import { escapeHtml, formatDate, layout, percent } from '../utils/html.js';
 import { renderCreate } from './pages.js';
 
@@ -19,7 +19,7 @@ const optionKeys = ['A', 'B', 'C', 'D'];
 
 export const quizzesRouter = express.Router();
 
-quizzesRouter.post('/create', requireUser, upload.single('quizFile'), async (req, res, next) => {
+quizzesRouter.post('/create', requireUser, handleQuizUpload, async (req, res, next) => {
   let tempPath = req.file?.path;
 
   try {
@@ -27,8 +27,8 @@ quizzesRouter.post('/create', requireUser, upload.single('quizFile'), async (req
       return res.status(400).send(renderCreate(req, 'Fayl tanlanmadi.'));
     }
 
-    const extractedText = await extractTextFromFile(req.file.path, req.file.originalname);
-    if (extractedText.length < 20) {
+    const extractedContent = await extractFileContent(req.file.path, req.file.originalname, req.file.mimetype);
+    if (extractedContent.kind === 'text' && extractedContent.text.length < 20) {
       return res.status(400).send(renderCreate(req, 'Fayl ichidan yetarli matn topilmadi.'));
     }
 
@@ -39,7 +39,7 @@ quizzesRouter.post('/create', requireUser, upload.single('quizFile'), async (req
     await query(
       `INSERT INTO uploaded_files (id, user_id, original_name, mime_type, file_size, extracted_text)
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      [fileId, req.user.id, req.file.originalname, req.file.mimetype, req.file.size, extractedText]
+      [fileId, req.user.id, req.file.originalname, req.file.mimetype, req.file.size, extractedContent.storageText]
     );
 
     await query(
@@ -49,8 +49,8 @@ quizzesRouter.post('/create', requireUser, upload.single('quizFile'), async (req
     );
 
     try {
-      const generatedQuiz = await generateQuizFromText({
-        text: extractedText,
+      const generatedQuiz = await generateQuizFromContent({
+        content: extractedContent,
         fileName: req.file.originalname
       });
 
@@ -124,9 +124,31 @@ quizzesRouter.get('/quizzes', requireUser, async (req, res, next) => {
   }
 });
 
+quizzesRouter.get('/others', requireUser, async (req, res, next) => {
+  try {
+    const quizzes = await query(
+      `SELECT q.*,
+        u.full_name AS owner_name,
+        u.email AS owner_email,
+        COUNT(a.id)::int AS attempt_count
+       FROM quizzes q
+       JOIN users u ON u.id = q.user_id
+       LEFT JOIN quiz_attempts a ON a.quiz_id = q.id
+       WHERE q.status = 'ready'
+       GROUP BY q.id, u.full_name, u.email
+       ORDER BY q.created_at DESC`,
+      []
+    );
+
+    res.send(renderOthersList(req, quizzes.rows));
+  } catch (error) {
+    next(error);
+  }
+});
+
 quizzesRouter.get('/quizzes/:id', requireUser, async (req, res, next) => {
   try {
-    const quiz = await getOwnedQuiz(req.params.id, req.user.id);
+    const quiz = await getVisibleQuiz(req.params.id);
     if (!quiz) return res.status(404).send(renderNotFound(req));
 
     const questions = await getQuizQuestions(quiz.id);
@@ -140,7 +162,7 @@ quizzesRouter.get('/quizzes/:id', requireUser, async (req, res, next) => {
 
 quizzesRouter.post('/quizzes/:id/attempts', requireUser, async (req, res, next) => {
   try {
-    const quiz = await getOwnedQuiz(req.params.id, req.user.id);
+    const quiz = await getVisibleQuiz(req.params.id);
     if (!quiz || quiz.status !== 'ready') {
       return res.status(404).json({ error: 'Quiz topilmadi.' });
     }
@@ -222,8 +244,31 @@ quizzesRouter.post('/quizzes/:id/attempts', requireUser, async (req, res, next) 
   }
 });
 
+function handleQuizUpload(req, res, next) {
+  upload.single('quizFile')(req, res, (error) => {
+    if (!error) return next();
+
+    const message = error.code === 'LIMIT_FILE_SIZE'
+      ? 'Fayl 10 MB dan katta. Kichikroq fayl yuboring.'
+      : error.message || 'Fayl yuklashda xatolik yuz berdi.';
+
+    return res.status(400).send(renderCreate(req, message));
+  });
+}
+
 async function getOwnedQuiz(id, userId) {
   const result = await query('SELECT * FROM quizzes WHERE id = $1 AND user_id = $2', [id, userId]);
+  return result.rows[0] || null;
+}
+
+async function getVisibleQuiz(id) {
+  const result = await query(
+    `SELECT q.*, u.full_name AS owner_name, u.email AS owner_email
+     FROM quizzes q
+     JOIN users u ON u.id = q.user_id
+     WHERE q.id = $1`,
+    [id]
+  );
   return result.rows[0] || null;
 }
 
@@ -290,6 +335,50 @@ function renderQuizList(req, quizzes) {
   });
 }
 
+function renderOthersList(req, quizzes) {
+  const rows = quizzes.length
+    ? quizzes.map((quiz) => `
+      <article class="quiz-card public-card">
+        <div>
+          <span class="status-pill ok">Public</span>
+          <h2>${escapeHtml(quiz.title)}</h2>
+          <p class="muted">
+            ${Number(quiz.question_count || 0)} ta savol |
+            ${Number(quiz.attempt_count || 0)} umumiy urinish |
+            yaratgan: ${escapeHtml(quiz.owner_name || quiz.owner_email || 'User')}
+          </p>
+        </div>
+        <div class="quiz-card-side">
+          <small>${formatDate(quiz.created_at)}</small>
+          <a class="button small" href="/quizzes/${quiz.id}">Testni ishlash</a>
+        </div>
+      </article>
+    `).join('')
+    : `
+      <div class="empty-state">
+        <h2>Hali public quiz yo‘q.</h2>
+        <p class="muted">Kimdir quiz yaratganda shu bo‘limda ko‘rinadi.</p>
+      </div>
+    `;
+
+  return layout({
+    title: 'Others Users Tests',
+    user: req.user,
+    active: 'others',
+    body: `
+      <section class="page-head">
+        <div>
+          <p class="eyebrow">Others Users Tests</p>
+          <h1>Boshqa foydalanuvchilar yaratgan testlar.</h1>
+          <p class="muted">Bu yerda barcha tayyor quizlar ko‘rinadi. Istalgan birini ochib ishlashingiz mumkin.</p>
+        </div>
+        <a class="button" href="/create">O‘zim quiz yarataman</a>
+      </section>
+      <section class="quiz-list">${rows}</section>
+    `
+  });
+}
+
 function renderQuizDetail(req, quiz, questions, attempts) {
   if (quiz.status === 'failed') {
     return layout({
@@ -333,6 +422,9 @@ function renderQuizDetail(req, quiz, questions, attempts) {
     secondsPerQuestion: 30,
     countdownSeconds: 5
   };
+  const shareUrl = `${req.protocol}://${req.get('host')}/quizzes/${quiz.id}`;
+  const ownerName = quiz.owner_name || req.user.full_name || quiz.owner_email || 'User';
+  const isOwner = quiz.user_id === req.user.id;
 
   return layout({
     title: quiz.title,
@@ -343,9 +435,12 @@ function renderQuizDetail(req, quiz, questions, attempts) {
         <div>
           <p class="eyebrow">Test</p>
           <h1>${escapeHtml(quiz.title)}</h1>
-          <p class="muted">${questions.length} ta savol. Har savol uchun 30 sekund, savollar va variantlar har urinishda random.</p>
+          <p class="muted">${questions.length} ta savol. Yaratgan: ${escapeHtml(ownerName)}. Har savol uchun 30 sekund, savollar va variantlar har urinishda random.</p>
         </div>
-        <a class="button secondary" href="/quizzes">Quiz tests</a>
+        <div class="head-actions">
+          <button class="button" id="share-quiz" type="button" data-share-url="${escapeHtml(shareUrl)}">Ulashish</button>
+          <a class="button secondary" href="${isOwner ? '/quizzes' : '/others'}">${isOwner ? 'Quiz tests' : 'Others Users Tests'}</a>
+        </div>
       </section>
 
       <section class="play-layout">

@@ -12,6 +12,7 @@ import { quizzesRouter } from './routes/quizzes.js';
 import { escapeHtml, layout } from './utils/html.js';
 
 const app = express();
+app.set('trust proxy', true);
 
 await fs.mkdir(config.uploadDir, { recursive: true });
 await initDatabase();

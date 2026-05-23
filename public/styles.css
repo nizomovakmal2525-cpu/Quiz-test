@@ -467,6 +467,14 @@ input:focus {
   margin-bottom: 24px;
 }
 
+.head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .page-head h1 {
   margin-bottom: 10px;
 }
@@ -1156,7 +1164,8 @@ td span {
   .quiz-card,
   .sticky-submit,
   .result-top,
-  .cta-band {
+  .cta-band,
+  .head-actions {
     grid-template-columns: 1fr;
     flex-direction: column;
     align-items: stretch;

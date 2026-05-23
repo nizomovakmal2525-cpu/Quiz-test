@@ -31,6 +31,7 @@ export function layout({ title, user, admin = false, active = '', body, flash = 
       <a class="${active === 'rules' ? 'active' : ''}" href="/rules">Qoidalar</a>
       <a class="${active === 'create' ? 'active' : ''}" href="/create">Create Quiz Test</a>
       <a class="${active === 'quizzes' ? 'active' : ''}" href="/quizzes">Quiz tests</a>
+      <a class="${active === 'others' ? 'active' : ''}" href="/others">Others Users Tests</a>
       ${admin ? '<a class="admin-link" href="/admin">Admin</a>' : ''}
     `
     : `
