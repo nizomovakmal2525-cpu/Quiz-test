@@ -25,9 +25,13 @@ export async function attachUser(req, _res, next) {
     }
 
     const result = await query(
-      'SELECT id, full_name, email, created_at FROM users WHERE id = $1',
+      'SELECT id, full_name, email, session_version, created_at FROM users WHERE id = $1',
       [payload.sub]
     );
+    if (result.rows[0] && Number(payload.sv || 0) !== Number(result.rows[0].session_version || 0)) {
+      req.user = null;
+      return next();
+    }
     req.user = result.rows[0] || null;
   } catch (_error) {
     req.user = null;
@@ -60,11 +64,14 @@ export function requireAdmin(req, res, next) {
   return next();
 }
 
-export function signUserCookie(res, userId) {
-  const token = jwt.sign({ sub: userId, role: 'user' }, config.jwtSecret, { expiresIn: '7d' });
+export function signUserCookie(res, user) {
+  const userId = typeof user === 'string' ? user : user.id;
+  const sessionVersion = typeof user === 'string' ? 1 : Number(user.session_version || 1);
+  const token = jwt.sign({ sub: userId, role: 'user', sv: sessionVersion }, config.jwtSecret, { expiresIn: '7d' });
   res.cookie(config.authCookie, token, {
     httpOnly: true,
     sameSite: 'lax',
+    secure: config.isProduction,
     maxAge: 7 * 24 * 60 * 60 * 1000
   });
 }
@@ -74,6 +81,7 @@ export function signAdminCookie(res) {
   res.cookie(config.authCookie, token, {
     httpOnly: true,
     sameSite: 'lax',
+    secure: config.isProduction,
     maxAge: 12 * 60 * 60 * 1000
   });
 }

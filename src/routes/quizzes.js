@@ -400,11 +400,6 @@ function renderPublicQuizPreview(req, quiz, questions) {
     });
   }
 
-  const previewQuestions = questions.slice(0, 5).map((question) => `
-    <article class="preview-question">
-      <strong>${Number(question.idx)}. ${escapeHtml(question.question)}</strong>
-    </article>
-  `).join('');
   const ownerName = quiz.owner_name || quiz.owner_email || 'User';
 
   return layout({
@@ -412,18 +407,32 @@ function renderPublicQuizPreview(req, quiz, questions) {
     user: req.user,
     active: 'quizzes',
     body: `
-      <section class="public-preview">
-        <div>
-          <p class="eyebrow">Shared Quiz</p>
+      <section class="shared-preview-wrap">
+        <div class="shared-preview-card">
+          <div class="shared-preview-top">
+            <span class="brand-mark">QT</span>
+            <span class="status-pill ok">Shared Quiz</span>
+          </div>
           <h1>${escapeHtml(quiz.title)}</h1>
-          <p class="muted">${questions.length} ta savol | yaratgan: ${escapeHtml(ownerName)}. Testni ko‘rish mumkin, yechish uchun register yoki login kerak.</p>
-          <div class="hero-actions">
-            <a class="button" href="/register">Register va testni ishlash</a>
+          <div class="shared-meta">
+            <span>${questions.length} ta savol</span>
+            <span>Yaratgan: ${escapeHtml(ownerName)}</span>
+            <span>${formatDate(quiz.created_at)}</span>
+          </div>
+          <p class="muted">Bu testni ishlash uchun register yoki login qiling. Akkaunt ochilgandan keyin natijangiz profilingizga saqlanadi.</p>
+          <div class="shared-actions">
+            <a class="button" href="/register">Register va boshlash</a>
             <a class="button secondary" href="/login">Login</a>
           </div>
         </div>
-        <div class="preview-list">
-          ${previewQuestions || '<p class="muted">Savollar tayyorlanmoqda.</p>'}
+        <div class="shared-preview-side">
+          <h2>Test qanday ishlaydi?</h2>
+          <p>Har savol uchun 30 sekund beriladi. Javobdan keyin 3.5 sekund davomida to‘g‘ri yoki noto‘g‘ri holat ko‘rsatiladi.</p>
+          <div class="shared-mini-grid">
+            <span>Random savollar</span>
+            <span>Random variant tartibi</span>
+            <span>Natija saqlanadi</span>
+          </div>
         </div>
       </section>
     `
