@@ -267,25 +267,48 @@ if (dataEl) {
 function setupShareButton() {
   const button = document.getElementById('share-quiz');
   if (!button) return;
+  const modal = document.getElementById('share-modal');
+  const close = document.getElementById('share-close');
+  const input = document.getElementById('share-link');
+  const copy = document.getElementById('copy-share-link');
 
-  button.addEventListener('click', async () => {
-    const url = button.dataset.shareUrl || window.location.href;
-    const text = `Quiz testni ishlang: ${url}`;
-
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: document.title, text, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        button.textContent = 'Link nusxalandi';
-        window.setTimeout(() => {
-          button.textContent = 'Ulashish';
-        }, 1600);
-      }
-    } catch (_error) {
-      await navigator.clipboard?.writeText(url).catch(() => {});
+  button.addEventListener('click', () => {
+    if (modal && input) {
+      modal.classList.remove('hidden');
+      modal.setAttribute('aria-hidden', 'false');
+      input.focus();
+      input.select();
+      return;
     }
+
+    const url = button.dataset.shareUrl || window.location.href;
+    copyText(url, button);
   });
+
+  close?.addEventListener('click', () => closeModal(modal));
+  modal?.addEventListener('click', (event) => {
+    if (event.target === modal) closeModal(modal);
+  });
+
+  copy?.addEventListener('click', () => {
+    const url = input?.value || button.dataset.shareUrl || window.location.href;
+    copyText(url, copy);
+  });
+}
+
+async function copyText(value, button) {
+  await navigator.clipboard?.writeText(value).catch(() => {});
+  const original = button.textContent;
+  button.textContent = 'Link nusxalandi';
+  window.setTimeout(() => {
+    button.textContent = original;
+  }, 1600);
+}
+
+function closeModal(modal) {
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
 }
 
 function escapeHtml(value = '') {

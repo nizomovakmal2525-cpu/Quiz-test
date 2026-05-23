@@ -3,7 +3,7 @@ import path from 'node:path';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { config } from './config.js';
-import { initDatabase } from './db.js';
+import { initDatabase, query } from './db.js';
 import { attachUser } from './middleware/auth.js';
 import { adminRouter } from './routes/admin.js';
 import { authRouter } from './routes/auth.js';
@@ -16,6 +16,7 @@ app.set('trust proxy', true);
 
 await fs.mkdir(config.uploadDir, { recursive: true });
 await initDatabase();
+await reconcileQuizStatuses();
 
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(express.json({ limit: '2mb' }));
@@ -71,3 +72,30 @@ app.use((error, req, res, _next) => {
 app.listen(config.port, () => {
   console.log(`Quiz Test AI: http://localhost:${config.port}`);
 });
+
+async function reconcileQuizStatuses() {
+  await query(`
+    UPDATE quizzes q
+    SET status = 'ready',
+        question_count = computed.question_count,
+        error_message = NULL,
+        updated_at = NOW()
+    FROM (
+      SELECT quiz_id, COUNT(*)::int AS question_count
+      FROM quiz_questions
+      GROUP BY quiz_id
+    ) computed
+    WHERE q.id = computed.quiz_id
+      AND q.status = 'processing'
+      AND computed.question_count > 0
+  `);
+
+  await query(`
+    UPDATE quizzes
+    SET status = 'failed',
+        error_message = 'AI jarayoni yakunlanmay qolgan. Faylni qayta yuklab ko‘ring.',
+        updated_at = NOW()
+    WHERE status = 'processing'
+      AND created_at < NOW() - INTERVAL '30 minutes'
+  `);
+}

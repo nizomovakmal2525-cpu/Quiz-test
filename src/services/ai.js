@@ -66,13 +66,14 @@ async function generateQuizFromTextChunk({ text, fileName, chunkIndex, totalChun
         `Qism: ${chunkIndex + 1}/${totalChunks}`,
         '',
         'Quyidagi matn qismidan faqat shu qismda to‘liq ko‘rinayotgan quiz savollarini tuzing. JSON sxemasi:',
-        '{"title":"qisqa quiz nomi","questions":[{"question":"savol matni","options":{"A":"...","B":"...","C":"...","D":"..."},"correctOption":"A","explanation":"qisqa izoh"}]}',
+        '{"title":"qisqa quiz nomi","conversionComplete":true,"questions":[{"question":"savol matni","options":{"A":"...","B":"...","C":"...","D":"..."},"correctOption":"A","explanation":"qisqa izoh"}]}',
         '',
         'Talablar:',
         '- Savollar sonini kamaytirmang.',
         "- Variantlar A, B, C, D bo'lishi shart.",
         "- correctOption faqat A, B, C yoki D bo'lsin.",
         "- Matnda savollar tartibi qanday bo'lsa, JSONda ham shu tartibda bering.",
+        '- Ishni tugatganingizni bildirish uchun JSON ichida "conversionComplete": true bo‘lsin.',
         '',
         'MATN:',
         text
@@ -165,7 +166,7 @@ async function generateQuizFromImage({ content, fileName }) {
           text: [
             `Fayl nomi: ${fileName}`,
             'Rasm ichidagi barcha test savollarini ajrating. Agar savol rasmda, javob esa pastida text qilib yozilgan bo‘lsa, javobni ham aniqlang.',
-            'JSON sxema: {"title":"qisqa quiz nomi","questions":[{"question":"savol","options":{"A":"...","B":"...","C":"...","D":"..."},"correctOption":"A","explanation":"qisqa izoh"}]}'
+            'JSON sxema: {"title":"qisqa quiz nomi","conversionComplete":true,"questions":[{"question":"savol","options":{"A":"...","B":"...","C":"...","D":"..."},"correctOption":"A","explanation":"qisqa izoh"}]}'
           ].join('\n')
         },
         {

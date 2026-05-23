@@ -1070,6 +1070,73 @@ input:focus {
   font-size: 13px;
 }
 
+.public-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1fr);
+  align-items: start;
+  gap: 28px;
+}
+
+.preview-list {
+  display: grid;
+  gap: 10px;
+}
+
+.preview-question {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.share-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(10, 16, 16, 0.45);
+}
+
+.share-modal.hidden {
+  display: none;
+}
+
+.share-dialog {
+  width: min(520px, 100%);
+  padding: 20px;
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.22);
+}
+
+.share-dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+}
+
+.share-dialog-head h2 {
+  margin: 0;
+}
+
+.icon-close {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.share-dialog input {
+  margin: 14px 0;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1177,7 +1244,8 @@ td span {
   .page-head,
   .create-layout,
   .guide-panel,
-  .play-layout {
+  .play-layout,
+  .public-preview {
     grid-template-columns: 1fr;
   }
 

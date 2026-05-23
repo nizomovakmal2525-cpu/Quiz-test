@@ -146,12 +146,16 @@ quizzesRouter.get('/others', requireUser, async (req, res, next) => {
   }
 });
 
-quizzesRouter.get('/quizzes/:id', requireUser, async (req, res, next) => {
+quizzesRouter.get('/quizzes/:id', async (req, res, next) => {
   try {
     const quiz = await getVisibleQuiz(req.params.id);
     if (!quiz) return res.status(404).send(renderNotFound(req));
 
     const questions = await getQuizQuestions(quiz.id);
+    if (!req.user || req.isAdmin) {
+      return res.send(renderPublicQuizPreview(req, quiz, questions.rows));
+    }
+
     const attempts = await getAttemptHistory(req.user.id, quiz.id);
     const playableQuestions = quiz.status === 'ready' ? buildPlayableQuestions(questions.rows) : [];
     res.send(renderQuizDetail(req, quiz, playableQuestions, attempts.rows));
@@ -379,6 +383,53 @@ function renderOthersList(req, quizzes) {
   });
 }
 
+function renderPublicQuizPreview(req, quiz, questions) {
+  if (quiz.status !== 'ready') {
+    return layout({
+      title: quiz.title,
+      user: req.user,
+      active: 'quizzes',
+      body: `
+        <section class="empty-state">
+          <span class="status-pill warn">${escapeHtml(statusLabel(quiz.status))}</span>
+          <h1>${escapeHtml(quiz.title)}</h1>
+          <p class="muted">Bu test hali ishlashga tayyor emas.</p>
+          <a class="button" href="/login">Login</a>
+        </section>
+      `
+    });
+  }
+
+  const previewQuestions = questions.slice(0, 5).map((question) => `
+    <article class="preview-question">
+      <strong>${Number(question.idx)}. ${escapeHtml(question.question)}</strong>
+    </article>
+  `).join('');
+  const ownerName = quiz.owner_name || quiz.owner_email || 'User';
+
+  return layout({
+    title: quiz.title,
+    user: req.user,
+    active: 'quizzes',
+    body: `
+      <section class="public-preview">
+        <div>
+          <p class="eyebrow">Shared Quiz</p>
+          <h1>${escapeHtml(quiz.title)}</h1>
+          <p class="muted">${questions.length} ta savol | yaratgan: ${escapeHtml(ownerName)}. Testni ko‘rish mumkin, yechish uchun register yoki login kerak.</p>
+          <div class="hero-actions">
+            <a class="button" href="/register">Register va testni ishlash</a>
+            <a class="button secondary" href="/login">Login</a>
+          </div>
+        </div>
+        <div class="preview-list">
+          ${previewQuestions || '<p class="muted">Savollar tayyorlanmoqda.</p>'}
+        </div>
+      </section>
+    `
+  });
+}
+
 function renderQuizDetail(req, quiz, questions, attempts) {
   if (quiz.status === 'failed') {
     return layout({
@@ -488,6 +539,18 @@ function renderQuizDetail(req, quiz, questions, attempts) {
         </aside>
       </section>
 
+      <div class="share-modal hidden" id="share-modal" aria-hidden="true">
+        <div class="share-dialog">
+          <div class="share-dialog-head">
+            <h2>Test linkini ulashish</h2>
+            <button class="icon-close" id="share-close" type="button" aria-label="Yopish">x</button>
+          </div>
+          <p class="muted">Bu linkni yuborsangiz, boshqa user test sahifasini ko‘radi. Yechish uchun register/login qiladi.</p>
+          <input id="share-link" readonly value="${escapeHtml(shareUrl)}">
+          <button class="button full" id="copy-share-link" type="button">Linkni nusxalash</button>
+        </div>
+      </div>
+
       <script id="quiz-data" type="application/json">${safeJson(payload)}</script>
       <script src="/assets/quiz-player.js" defer></script>
     `
@@ -592,7 +655,7 @@ function toSafeInteger(value, fallback) {
 }
 
 function statusLabel(status) {
-  if (status === 'ready') return 'Tayyor';
+  if (status === 'ready') return 'Tugallandi';
   if (status === 'failed') return 'Xatolik';
   return 'Jarayonda';
 }
