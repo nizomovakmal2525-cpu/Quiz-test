@@ -172,7 +172,7 @@ if (dataEl) {
     window.setTimeout(() => {
       state.currentIndex += 1;
       showQuestion();
-    }, 1800);
+    }, config.feedbackDelayMs || 3500);
   }
 
   async function finishQuiz() {

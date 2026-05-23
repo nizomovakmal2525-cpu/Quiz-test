@@ -420,7 +420,8 @@ function renderQuizDetail(req, quiz, questions, attempts) {
     questions,
     submitUrl: `/quizzes/${quiz.id}/attempts`,
     secondsPerQuestion: 30,
-    countdownSeconds: 5
+    countdownSeconds: 5,
+    feedbackDelayMs: 3500
   };
   const shareUrl = `${req.protocol}://${req.get('host')}/quizzes/${quiz.id}`;
   const ownerName = quiz.owner_name || req.user.full_name || quiz.owner_email || 'User';
