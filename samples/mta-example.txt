@@ -1,0 +1,34 @@
+1. Operatsion tizim nima?
+A) Kompyuter qurilmalarini va dasturlarini boshqaruvchi dasturiy ta'minot
+B) Faqat rasm chizish dasturi
+C) Internet kabeli
+D) Printer xotirasi
+Javob: A
+
+2. CPU nima vazifa bajaradi?
+A) Faqat fayl nomini o'zgartiradi
+B) Kompyuterning asosiy hisoblash ishlarini bajaradi
+C) Monitor yorqinligini saqlaydi
+D) Klaviatura tugmalarini almashtiradi
+Javob: B
+
+3. RAM qanday xotira?
+A) Doimiy optik disk
+B) Tarmoq protokoli
+C) Vaqtincha tezkor xotira
+D) Elektr kabeli
+Javob: C
+
+4. HTML nimaga xizmat qiladi?
+A) Ma'lumotlar bazasini siqishga
+B) Web sahifa tuzilmasini yaratishga
+C) Viruslarni tozalashga
+D) Kompyuterni o'chirishga
+Javob: B
+
+5. IP manzil nima?
+A) Tarmoqdagi qurilmani aniqlovchi manzil
+B) Word hujjat turi
+C) Sichqoncha modeli
+D) Audio fayl formati
+Javob: A

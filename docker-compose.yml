@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: quiz-test-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: quiz_test_ai
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d quiz_test_ai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
