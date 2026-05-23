@@ -5,8 +5,15 @@ import { config } from './config.js';
 
 const { Pool } = pg;
 
+if (!config.databaseUrl) {
+  throw new Error('DATABASE_URL environment variable is required in production.');
+}
+
+const needsSsl = config.databaseSsl || /sslmode=require|ssl=true/i.test(config.databaseUrl);
+
 export const pool = new Pool({
-  connectionString: config.databaseUrl
+  connectionString: config.databaseUrl,
+  ssl: needsSsl ? { rejectUnauthorized: false } : undefined
 });
 
 export async function initDatabase() {

@@ -53,6 +53,7 @@ Environment variables:
 
 ```env
 DATABASE_URL=postgresql_connection_url
+DATABASE_SSL=true
 JWT_SECRET=long_random_secret
 AI_API_KEY=your_gemini_api_key
 AI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai

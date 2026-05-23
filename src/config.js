@@ -6,11 +6,15 @@ dotenv.config({ quiet: true });
 
 const srcDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(srcDir, '..');
+const isProduction = process.env.NODE_ENV === 'production';
+const localDatabaseUrl = 'postgres://postgres:postgres@localhost:5433/quiz_test_ai';
 
 export const config = {
   rootDir,
+  isProduction,
   port: Number(process.env.PORT || 3000),
-  databaseUrl: process.env.DATABASE_URL || 'postgres://postgres:postgres@localhost:5433/quiz_test_ai',
+  databaseUrl: process.env.DATABASE_URL || (isProduction ? '' : localDatabaseUrl),
+  databaseSsl: process.env.DATABASE_SSL === 'true',
   jwtSecret: process.env.JWT_SECRET || 'dev-only-change-me',
   authCookie: 'quiz_test_auth',
   uploadDir: path.join(rootDir, 'uploads'),
