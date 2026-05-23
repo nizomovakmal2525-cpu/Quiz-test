@@ -110,25 +110,35 @@ export function renderCreate(req, error = '') {
         <div>
           <p class="eyebrow">Create</p>
           <h1>Fayldan quiz test yaratish.</h1>
-          <p class="muted">Fayl yuklang, AI savollarni tahlil qiladi va tayyor quiz “Quiz tests” hamda “Others Users Tests” bo‘limida paydo bo‘ladi.</p>
+          <p class="muted">Fayl yuklang, AI fayl ichidagi ma'lumotni sayt tushunadigan JSON formatga aylantiradi va sayt shu JSONdan quiz yaratadi.</p>
         </div>
         <span class="status-pill ${aiReady ? 'ok' : 'warn'}">${aiReady ? 'AI ulangan' : 'AI key kerak'}</span>
       </section>
 
       <section class="create-layout">
-        <form class="upload-panel" method="post" action="/create" enctype="multipart/form-data">
+        <form class="upload-panel" id="create-quiz-form" method="post" action="/create" enctype="multipart/form-data">
           <label>
             <span>Quiz nomi</span>
             <input name="title" placeholder="Masalan: MTA 1-kurs testlari">
           </label>
           <label class="dropzone">
-            <input type="file" name="quizFile" required>
+            <input id="quiz-file-input" type="file" name="quizFile" required>
             <span class="drop-icon">+</span>
             <strong>Faylni tanlang</strong>
             <small>Har qanday fayl | 10 MB gacha | text/PDF/DOCX/rasm eng yaxshi ishlaydi</small>
           </label>
+          <div class="selected-file hidden" id="selected-file">
+            <div class="file-chip">
+              <span class="file-chip-icon">FILE</span>
+              <div>
+                <strong id="selected-file-name">Fayl tanlanmagan</strong>
+                <small id="selected-file-meta"></small>
+              </div>
+            </div>
+            <p class="upload-flow" id="upload-flow">Fayl tanlandi. Endi “AI orqali quiz yaratish” tugmasini bosing.</p>
+          </div>
           ${error ? `<p class="field-error">${escapeHtml(error)}</p>` : ''}
-          <button class="button full" type="submit">AI orqali quiz yaratish</button>
+          <button class="button full" id="create-submit" type="submit">AI orqali quiz yaratish</button>
         </form>
 
         <aside class="tips">
@@ -137,11 +147,13 @@ export function renderCreate(req, error = '') {
             <li>Savollarni raqam bilan boshlang.</li>
             <li>Variantlarni A), B), C), D) ko‘rinishida yozing.</li>
             <li>Javoblar bor bo‘lsa “Javob: A” tarzida qoldiring.</li>
+            <li>AI yordamchi sifatida fayldagi savollarni sayt tushunadigan JSON formatga aylantiradi.</li>
             <li>Rasmda savol bo‘lsa, javob matni ham aniq ko‘rinsin.</li>
             <li>Skanerlangan PDF ishlamasa, sahifalarni rasm qilib yuborib ko‘ring.</li>
           </ul>
         </aside>
       </section>
+      <script src="/assets/create-upload.js" defer></script>
     `
   });
 }

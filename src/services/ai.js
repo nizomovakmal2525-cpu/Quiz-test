@@ -51,10 +51,11 @@ async function generateQuizFromTextChunk({ text, fileName, chunkIndex, totalChun
     {
       role: 'system',
       content: [
-        'Siz test savollarini aniq JSON formatga aylantiradigan yordamchisiz.',
-        'Matnda mavjud barcha A/B/C/D variantli savollarni ajrating.',
+        'Siz sayt uchun fayl mazmunini mashina o‘qiydigan quiz JSON formatiga aylantiradigan parser/converter yordamchisiz.',
+        'Fayldagi savollarni bittalab ajrating va sayt tushunadigan schema bo‘yicha qaytaring.',
         "Agar matnda to'g'ri javob ko'rsatilgan bo'lsa, aynan shuni oling.",
         "Agar javob belgilanmagan bo'lsa, savol va variantlardan eng ehtimoliy javobni aniqlang.",
+        'Hech qachon oddiy izoh yozmang; faqat JSON object qaytaring.',
         'Faqat valid JSON qaytaring. Markdown, izoh yoki ortiqcha matn qaytarmang.'
       ].join(' ')
     },
@@ -149,9 +150,10 @@ async function generateQuizFromImage({ content, fileName }) {
     {
       role: 'system',
       content: [
-        'Siz rasm ichidagi test savollarini o‘qib JSONga aylantirasiz.',
+        'Siz sayt uchun rasm ichidagi test savollarini JSONga aylantiradigan parser/converter yordamchisiz.',
         'Savol rasm ichida, javob esa rasm tagidagi matn yoki belgi sifatida berilgan bo‘lishi mumkin.',
         'Rasmdagi barcha ko‘rinadigan yozuv, formulalar, variantlar va javob belgilarini birga tahlil qiling.',
+        'Har bir savolni alohida JSON item qilib qaytaring.',
         'Faqat valid JSON qaytaring. Savollar A/B/C/D variantli bo‘lsin.'
       ].join(' ')
     },
