@@ -4,6 +4,7 @@ export function parseStructuredQuiz(text, fileName = 'Yangi quiz') {
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean);
+  const answerKey = parseAnswerKey(lines);
 
   const questions = [];
   let current = null;
@@ -54,18 +55,20 @@ export function parseStructuredQuiz(text, fileName = 'Yangi quiz') {
     questions.push(current);
   }
 
+  const normalizedQuestions = questions.map((question, index) => ({
+    idx: index + 1,
+    question: cleanText(question.question),
+    optionA: cleanText(question.options.A),
+    optionB: cleanText(question.options.B),
+    optionC: cleanText(question.options.C),
+    optionD: cleanText(question.options.D),
+    correctOption: question.correctOption || answerKey.get(index + 1) || '',
+    explanation: question.correctOption || answerKey.has(index + 1) ? 'Fayldagi javob asosida olindi.' : ''
+  }));
+
   return {
     title: createTitle(fileName),
-    questions: questions.map((question, index) => ({
-      idx: index + 1,
-      question: cleanText(question.question),
-      optionA: cleanText(question.options.A),
-      optionB: cleanText(question.options.B),
-      optionC: cleanText(question.options.C),
-      optionD: cleanText(question.options.D),
-      correctOption: question.correctOption || '',
-      explanation: question.correctOption ? 'Fayldagi javob asosida olindi.' : ''
-    }))
+    questions: normalizedQuestions
   };
 }
 
@@ -85,7 +88,7 @@ function parseQuestionLine(line) {
 }
 
 function parseOptionLine(line) {
-  const match = line.match(/^([ABCD])\s*[\).:\-]\s*(.+)$/i);
+  const match = line.match(/^(?:variant\s*)?([ABCD])\s*[\).:\-\]]?\s+(.+)$/i);
   if (!match) return null;
   return {
     key: match[1].toUpperCase(),
@@ -94,9 +97,32 @@ function parseOptionLine(line) {
 }
 
 function parseAnswerLine(line) {
-  const match = line.match(/^(?:javob|to['‘’`]?g['‘’`]?ri\s+javob|answer|correct(?:\s+answer)?)\s*[:\-]?\s*([ABCD])\b/i);
+  const match = line.match(/^(?:javob|to['‘’`]?g['‘’`]?ri\s+javob|answer|correct(?:\s+answer)?|ans)\s*[:\-]?\s*([ABCD])\b/i);
   if (!match) return '';
   return match[1].toUpperCase();
+}
+
+function parseAnswerKey(lines) {
+  const answers = new Map();
+
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    if (!/(javob|answer|correct|kalit)/i.test(lower)) continue;
+
+    const matches = [...line.matchAll(/(\d{1,4})\s*[\).:\-\s]\s*([ABCD])\b/gi)];
+    for (const match of matches) {
+      answers.set(Number(match[1]), match[2].toUpperCase());
+    }
+  }
+
+  for (const line of lines) {
+    const match = line.match(/^(\d{1,4})\s*[\).:\-]\s*([ABCD])$/i);
+    if (match) {
+      answers.set(Number(match[1]), match[2].toUpperCase());
+    }
+  }
+
+  return answers;
 }
 
 function isUsableQuestion(question) {

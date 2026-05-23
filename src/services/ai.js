@@ -18,6 +18,34 @@ export async function generateQuizFromContent({ content, fileName }) {
 
 export async function generateQuizFromText({ text, fileName }) {
   assertAiConfigured();
+  const chunks = splitTextIntoChunks(text, 12000);
+  const allQuestions = [];
+  let title = createTitle(fileName);
+
+  for (const [chunkIndex, chunk] of chunks.entries()) {
+    const chunkQuiz = await generateQuizFromTextChunk({
+      text: chunk,
+      fileName,
+      chunkIndex,
+      totalChunks: chunks.length
+    });
+
+    if (chunkQuiz.title && chunkIndex === 0) title = chunkQuiz.title;
+    allQuestions.push(...chunkQuiz.questions);
+  }
+
+  if (allQuestions.length === 0) {
+    throw new Error('AI savollarni topa olmadi. Fayl ichida savollar va A/B/C/D variantlar aniq ko‘rinishini tekshiring.');
+  }
+
+  return {
+    title,
+    questions: allQuestions.map((question, index) => ({ ...question, idx: index + 1 }))
+  };
+}
+
+async function generateQuizFromTextChunk({ text, fileName, chunkIndex, totalChunks }) {
+  assertAiConfigured();
 
   const content = await chatCompletion([
     {
@@ -34,8 +62,9 @@ export async function generateQuizFromText({ text, fileName }) {
       role: 'user',
       content: [
         `Fayl nomi: ${fileName}`,
+        `Qism: ${chunkIndex + 1}/${totalChunks}`,
         '',
-        'Quyidagi matndan quiz tuzing. JSON sxemasi:',
+        'Quyidagi matn qismidan faqat shu qismda to‘liq ko‘rinayotgan quiz savollarini tuzing. JSON sxemasi:',
         '{"title":"qisqa quiz nomi","questions":[{"question":"savol matni","options":{"A":"...","B":"...","C":"...","D":"..."},"correctOption":"A","explanation":"qisqa izoh"}]}',
         '',
         'Talablar:',
@@ -45,7 +74,7 @@ export async function generateQuizFromText({ text, fileName }) {
         "- Matnda savollar tartibi qanday bo'lsa, JSONda ham shu tartibda bering.",
         '',
         'MATN:',
-        text.slice(0, 90000)
+        text
       ].join('\n')
     }
   ]);
@@ -68,27 +97,31 @@ async function completeMissingAnswersWithAi(quiz, fileName) {
     knownCorrectOption: isOption(question.correctOption) ? question.correctOption : null
   }));
 
-  const content = await chatCompletion([
-    {
-      role: 'system',
-      content: 'Siz test javoblarini aniqlaysiz. Faqat valid JSON qaytaring.'
-    },
-    {
-      role: 'user',
-      content: [
-        `Fayl nomi: ${fileName}`,
-        'Quyidagi savollar uchun correctOption va qisqa explanation qaytaring.',
-        'JSON sxema: {"answers":[{"idx":1,"correctOption":"A","explanation":"qisqa izoh"}]}',
-        JSON.stringify(answerPayload)
-      ].join('\n')
-    }
-  ], Math.min(config.ai.maxTokens, 8000));
+  const answerMap = new Map();
+  const batches = chunkArray(answerPayload, 10);
 
-  const parsed = await parseJsonWithRepair(content, 'answers');
-  const answerMap = new Map(
-    (Array.isArray(parsed.answers) ? parsed.answers : [])
-      .map((answer) => [Number(answer.idx), answer])
-  );
+  for (const batch of batches) {
+    const content = await chatCompletion([
+      {
+        role: 'system',
+        content: 'Siz test javoblarini aniqlaysiz. Faqat valid JSON qaytaring.'
+      },
+      {
+        role: 'user',
+        content: [
+          `Fayl nomi: ${fileName}`,
+          'Quyidagi savollar uchun correctOption va qisqa explanation qaytaring.',
+          'JSON sxema: {"answers":[{"idx":1,"correctOption":"A","explanation":"qisqa izoh"}]}',
+          JSON.stringify(batch)
+        ].join('\n')
+      }
+    ], Math.min(config.ai.maxTokens, 4000));
+
+    const parsed = await parseJsonWithRepair(content, 'answers');
+    for (const answer of Array.isArray(parsed.answers) ? parsed.answers : []) {
+      answerMap.set(Number(answer.idx), answer);
+    }
+  }
 
   const questions = quiz.questions.map((question) => {
     if (isOption(question.correctOption)) return question;
@@ -243,6 +276,32 @@ function safeParseJson(rawContent) {
 
     throw _error;
   }
+}
+
+function splitTextIntoChunks(text, maxChars) {
+  const lines = String(text || '').split('\n');
+  const chunks = [];
+  let current = '';
+
+  for (const line of lines) {
+    if ((current + line + '\n').length > maxChars && current.trim()) {
+      chunks.push(current.trim());
+      current = '';
+    }
+
+    current += `${line}\n`;
+  }
+
+  if (current.trim()) chunks.push(current.trim());
+  return chunks.length ? chunks : [''];
+}
+
+function chunkArray(items, size) {
+  const chunks = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
 }
 
 function normalizeQuestion(item, index) {
