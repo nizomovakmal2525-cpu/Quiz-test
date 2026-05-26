@@ -51,7 +51,9 @@ async function generateQuizFromTextChunk({ text, fileName, chunkIndex, totalChun
     {
       role: 'system',
       content: [
+        
         'Siz sayt uchun fayl mazmunini mashina o‘qiydigan quiz JSON formatiga aylantiradigan parser/converter yordamchisiz.',
+        'fayl ichidagi savollar rasmda bulishi mumkin yoki sal sifati yaxshi bulmagan rasmlar bulishi mumkin va rasmda A/B/C/D javob bulmasligi mumkin',
         'Fayldagi savollarni bittalab ajrating va sayt tushunadigan schema bo‘yicha qaytaring.',
         "Agar matnda to'g'ri javob ko'rsatilgan bo'lsa, aynan shuni oling.",
         "Agar javob belgilanmagan bo'lsa, savol va variantlardan eng ehtimoliy javobni aniqlang.",
